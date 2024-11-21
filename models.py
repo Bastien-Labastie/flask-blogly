@@ -43,8 +43,30 @@ class Post (db.Model):
         return self.created_at.strtime("%a %b %-d  %Y, %-I:%M %p")
     
 
-def connect_db(app):
-        """Connect the database to the Flask app"""
+class PostTag (db.Model):
+    """Tag on a blog post."""
 
-        db.app = app
-        db.init_app(app)
+    __tablename__ = "post_tags"
+
+    post_id = db.Column(db.Integer, db.ForerignKey('posts.id'), primary_key=True)
+    tag_id = db.Column(db.Integer, db.ForerignKey('tag.id'), primary_key=True)
+
+
+
+class Tag(db.Model):
+    """Tag available for posts."""
+
+    __tablename__ = "tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False, unique=True)
+
+    posts = db.relationship('Post', secondary="posts_tags", backref="tags")
+
+
+
+def connect_db(app):
+    """Connect the database to the Flask app"""
+
+    db.app = app
+    db.init_app(app)

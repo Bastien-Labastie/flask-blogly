@@ -1,6 +1,6 @@
 from flask import Flask, request, redirect, render_template, flash
 from flask_debugtoolbar import DebugToolbarExtension
-from models import db, connect_db, User, Post
+from models import db, connect_db, User, Post, Tag
 
 
 app = Flask(__name__)
@@ -112,14 +112,17 @@ def posts_new_form(user_id):
     """Show form to add new post for certain user."""
 
     user = User.query.get_or_404(user_id)
-    return render_template('posts/new-post.html', user=user)
+    tags = Tag.query.all()
+    return render_template('posts/new-post.html', user=user, tags=tags)
 
 @app.route('/users<int:user_id>/posts/new', methods=["POST"])
 def posts_new(user_id):
     """Handle form submission for creating a new posts."""
 
     user = User.query.get_or_404(user_id)
-    new_post = Post(title=request.form['title'], content=request['content'], user=user)
+    tags_ids = [int(num) for num in request.form.getlist("tags")]
+    tags = Tag.query.filter(Tag.id.in_(tags_ids)).all()
+    new_post = Post(title=request.form['title'], content=request['content'], user=user, tags=tags)
 
     with app.app_context():
         db.session.add(new_post)
@@ -143,7 +146,8 @@ def edit_posts(post_id):
     """Show a form to edit a post."""
 
     post = Post.query.get_or_404(post_id)
-    return render_template('posts/edit.html', post=post)
+    tags = Tag.query.all()
+    return render_template('posts/edit.html', post=post, tags=tags)
 
 
 @app.route('/posts/<int:post_id>/edit', methods=["POST"])
@@ -154,6 +158,9 @@ def update_posts(post_id):
     post = Post.query.get_or_404(post_id)
     post.title = request.form['title']
     post.content = request.form['content']
+
+    tag_ids = [int(num) for num in request.form.getlist("tags")]
+    post.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
 
     with app.app_context():
         db.session.add(post)
@@ -176,3 +183,90 @@ def delete_post(post_id):
     flash(f"POST '{post.title}' deleted.")
     
     return redirect(f"/users/{post.user_id}")
+
+
+# Tags routes
+
+
+@app.route('/tags')
+def tags_list():
+    """Show a page with info about all tags."""
+
+    tag = Tag.query.all()
+    return render_template('tags/list.html', tag=tag)
+
+
+@app.route('/tags/<int:tag_id>')
+def tag_info(tag_id):
+    """Show detail about a tag."""
+    tag = Tag.query.get_or_404(tag_id)
+    return render_template('tags/tag-info.html', tag=tag)
+
+
+
+@app.route('/tags/new')
+def tags_form():
+    """Shows a form to add a new tag."""
+
+    posts = Post.query.all()
+    return render_template('tags/new-tag.html', posts=posts)
+
+@app.route('/tags/new', methods=['POST'])
+def tags_new():
+    """Handle new tag form submission."""
+
+    post_ids = [int(num) for num in request.form.getlist("posts")]
+    posts = Post.queryfilter(Post.id.in_(post_ids)).all()
+    new_tag = Tag(name=request.form['name'], posts=posts)
+
+
+    with app.app_context():
+
+        db.session.add(new_tag)
+        db.session.commit()
+        
+    flash(f"Tag '{new_tag.name}' has been added.")
+
+    return redirect ("/tags")
+
+@app.route('/tags/<int:tag_id>/edit')
+def tag_edit_form(tag_id):
+    """Show edit form for a tag."""
+    tag = Tag.query.get_or_404(tag_id)
+    posts = Post.query.all()
+    return render_template('tags/edit.html', tag=tag, posts=posts)
+
+
+@app.route('/tags/<int:tag_id>/edit', methods=["POST"])
+def tag_edit(tag_id):
+    """Process edit form, edit tag, and redirects to the tag list."""
+
+    tag = Tag.query.get_or_404(tag_id)
+    tag.name = request.form['name']
+    post_ids = [int(num) for num in request.form.getlist("posts")]
+    tag.posts = Post.query.filter(Post.id.in_(post_ids)).all()
+
+    with app.app_context():
+
+        db.session.add(tag)
+        db.session.commit()
+    
+    flash(f"Tag '{tag.name}' has been edited.")
+
+    return redirect("/tags")
+
+@app.route('/tags/<int:tag_id>/delete', methods=["POST"])
+def tag_delete(tag_id):
+    """Delete a tag."""
+
+    tag = Tag.query.get_or_404(tag_id)
+
+    with app.app_context():
+
+        db.session.delete(tag)
+        db.session.commit()
+
+    flash(f"Tag '{tag.name}' has been deleted.")
+
+    return redirect("/tags")
+    
