@@ -17,9 +17,14 @@
     
     <a class="btn btn-primary" href="=/users/new">Add User</a>
  
+    <div class="container mt-5">
+        {% for msg in get flashed_messages() %}
+        <div class="alert alert-info">{{ msg }}</div>
+        {% endfor %}
+
+        {% block content %}
     
-    {% block content %}
-    
-    {% endblock %}
+        {% endblock %}
+    </div>
 </body>
 </html>
